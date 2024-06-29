@@ -15,6 +15,7 @@
         <div class="push-right"><span class="icon-alarm text-faded"></span></div>
         <div class="flex-1 push-right">Symbol</div>
         <div class="flex-1 push-right">Alarm</div>
+        <div class="flex-1 push-right">Live Price</div>
         <div class="flex-1 push-right">Status</div>
         <div class="flex-1 push-right">Created</div>
         <div><button class="icon-close text-danger-hover" title="Delete All" @click="flushAlarms" v-tooltip></button></div>
@@ -41,6 +42,9 @@
           <span class="text-info">{{ a.asset }}</span>
         </div>
         <div class="flex-1 push-right">
+          <span>{{ livePrices[a.symbol] ? livePrices[a.symbol] : 'Loading...' }}</span> <!-- Add this line -->
+        </div>
+        <div class="flex-1 push-right">
           <span :class="{ 'text-success': a.active, 'text-info': !a.active }">{{ a.active ? 'Active' : 'Triggered' }}</span>
         </div>
         <div class="flex-1 push-right">
@@ -57,84 +61,72 @@
 </template>
 
 <script>
-// component
 export default {
-
-  // component props
   props: {
     alarmsData: { type: Array, default() { return [] }, required: true },
     pairData: { type: Object, default() { return {} } },
   },
-
-  // comonent data
   data() {
     return {
       curPrice: '',
-    }
+      livePrices: {} // Add this line
+    };
   },
-
-  // computed methods
   computed: {
-
-    // filter alarms for this token
     alarmsList() {
       let list = this.alarmsData.slice();
       let symbol = this.pairData.symbol || '';
-
-      // sort all alarms by symbol
-      list = this.$utils.sort( list, 'symbol', 'asc' );
-
-      // sort alarms for a specific symbol by status
-      if ( symbol ) {
-        list = list.filter( a => a.symbol === symbol );
-        list = this.$utils.sort( list, 'active', 'desc' );
+      list = this.$utils.sort(list, 'symbol', 'asc');
+      if (symbol) {
+        list = list.filter(a => a.symbol === symbol);
+        list = this.$utils.sort(list, 'active', 'desc');
       }
-      // update count outside
-      this.$emit( 'listCount', list.length );
+      this.$emit('listCount', list.length);
       return list;
     },
   },
-
-  // component methods
   methods: {
-
-    // save a new alert for this token
-    saveAlarm( e ) {
+    saveAlarm(e) {
       let { symbol, asset, close } = this.pairData;
-      let price = parseFloat( e.target.price.value ) || 0;
-      let saved = this.$alarms.add( this.pairData, price );
-      if ( !saved ) return this.$bus.emit( 'showNotice', 'Please enter a different '+ asset +' alarm price.', 'warning' );
-      this.$bus.emit( 'showNotice', 'New alarm for '+ symbol +' set for '+ price.toFixed( 8 ) +' '+ asset +'.', 'success' );
+      let price = parseFloat(e.target.price.value) || 0;
+      let saved = this.$alarms.add(this.pairData, price);
+      if (!saved) return this.$bus.emit('showNotice', 'Please enter a different ' + asset + ' alarm price.', 'warning');
+      this.$bus.emit('showNotice', 'New alarm for ' + symbol + ' set for ' + price.toFixed(8) + ' ' + asset + '.', 'success');
     },
-
-    // toggle existing alarm for as symbol by id
-    toggleAlarm( id, symbol, toggle ) {
+    toggleAlarm(id, symbol, toggle) {
       let action = toggle ? 'enabled' : 'disabled';
-      this.$alarms.toggle( id, toggle );
-      this.$bus.emit( 'showNotice', 'Alarm for '+ symbol +' has been '+ action +'.', 'success' );
+      this.$alarms.toggle(id, toggle);
+      this.$bus.emit('showNotice', 'Alarm for ' + symbol + ' has been ' + action + '.', 'success');
     },
-
-    // remove an alert from the list by id
-    deleteAlarm( id, symbol ) {
-      this.$alarms.remove( id );
-      this.$bus.emit( 'showNotice', 'Alarm for '+ symbol +' has been removed.', 'success' );
+    deleteAlarm(id, symbol) {
+      this.$alarms.remove(id);
+      this.$bus.emit('showNotice', 'Alarm for ' + symbol + ' has been removed.', 'success');
     },
-
-    // flush all alarms from the list
     flushAlarms() {
-      if ( !confirm( 'Delete all alarms from the list?' ) ) return;
+      if (!confirm('Delete all alarms from the list?')) return;
       this.$alarms.flush();
-      this.$bus.emit( 'showNotice', 'All alarms have been deleted.', 'success' );
+      this.$bus.emit('showNotice', 'All alarms have been deleted.', 'success');
     },
-  },
-
-  // component mounted
-  mounted() {
-    if ( this.pairData.symbol ) {
-      this.curPrice = Number( this.pairData.close ).toFixed( 8 );
+    fetchLivePrice(pair) {
+      const url = `https://api.binance.com/api/v3/ticker/price?symbol=${pair}`;
+      return fetch(url)
+        .then(response => response.json())
+        .then(data => data.price);
+    },
+    updateLivePrices() {
+      this.alarmsList.forEach(alarm => {
+        this.fetchLivePrice(alarm.symbol).then(price => {
+          this.$set(this.livePrices, alarm.symbol, price);
+        });
+      });
     }
   },
-
+  mounted() {
+    if (this.pairData.symbol) {
+      this.curPrice = Number(this.pairData.close).toFixed(8);
+    }
+    this.updateLivePrices();
+    setInterval(this.updateLivePrices, 30000); // Update every 30 seconds
+  }
 }
 </script>
-
