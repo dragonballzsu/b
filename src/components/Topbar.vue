@@ -193,7 +193,7 @@ export default {
     marketPrices() {
       let market = this.options.prices.market || 'USDT';
       let list  = this.priceData.filter( p => ( p.market === market ) );
-      return this.$utils.sort( list, 'percent', 'desc' ).slice( 0, 3 );
+      return this.$utils.sort( list, 'percent', 'desc' ).slice( 0, 5 );
     },
   },
 
