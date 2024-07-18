@@ -1,4 +1,49 @@
 <template>
+  <div class="top-bar">
+    <div v-for="symbol in topSymbols" :key="symbol" class="symbol">
+      <span>{{ symbol }}</span>
+      <span>{{ getSymbolPrice(symbol) }}</span>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      topSymbols: ['BTC', 'ETH', 'SOL']
+    };
+  },
+  methods: {
+    getSymbolPrice(symbol) {
+      // Replace with the actual method to fetch symbol prices
+      const pair = this.tradingPairs.find(pair => pair.symbol === symbol);
+      return pair ? pair.close : 'N/A';
+    }
+  },
+  computed: {
+    tradingPairs() {
+      return this.$store.state.tradingPairs;
+    }
+  }
+};
+</script>
+
+<style scoped>
+.top-bar {
+  display: flex;
+  justify-content: space-around;
+  padding: 10px;
+  background-color: #f8f8f8;
+}
+.symbol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+</style>
+
+<template>
   <header class="topbar-wrap" :class="{ 'collapsed': header.collapsed }">
     <div class="container">
 
